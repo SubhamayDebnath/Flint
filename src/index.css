@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+/* Inter, Latin subset only (bundled, no network). Other scripts use the system fallback. */
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url("../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Dark-only UI. Every colour lives here; components only use the tokens. */
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: oklch(14.5% 0 0 / 70%); /* neutral-950 / 70: panel over the Acrylic blur */
+  --color-foreground: oklch(96.7% 0.001 286); /* zinc-100 */
+  --color-muted: oklch(70.5% 0.015 286); /* zinc-400 */
+  --color-subtle: oklch(55.2% 0.016 286); /* zinc-500 */
+  --color-hover: oklch(100% 0 0 / 10%);
+  --color-chip: oklch(100% 0 0 / 10%);
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html,
+  body,
+  #root {
+    margin: 0;
+    overflow: hidden;
+    background: transparent;
+  }
+  body {
+    @apply cursor-default font-sans text-sm text-foreground antialiased select-none;
+  }
+}
