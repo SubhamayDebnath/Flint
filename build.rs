@@ -5,7 +5,7 @@ fn main() {
         res.set_icon("assets/icon.ico")
             .set("ProductName", "Flint")
             .set("FileDescription", "Flint launcher")
-            .set("CompanyName", "Subhamay")
+            .set("CompanyName", "subhamay")
             .set("LegalCopyright", "Copyright (c) 2026 subhamay");
         if let Err(e) = res.compile() {
             println!("cargo:warning=could not embed icon: {e}");

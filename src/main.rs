@@ -3,6 +3,7 @@
 
 mod calc;
 mod index;
+mod install;
 mod sys;
 mod ui;
 mod win;
@@ -85,6 +86,14 @@ fn main() -> eframe::Result {
     // called by the MSI uninstaller: remove the Run-key entry of the current user, then exit
     if std::env::args().any(|a| a == "--uninstall") {
         sys::set_autostart(false);
+        return Ok(());
+    }
+    if std::env::args().any(|a| a == "--uninstall-app") {
+        install::uninstall_app(); // Settings > Apps > Uninstall
+        return Ok(());
+    }
+    if install::needed() && install::install_and_launch() {
+        sys::message("Flint", "Flint is installed and running in the system tray.\n\nPress Alt + Space to open it. It starts automatically with Windows.");
         return Ok(());
     }
     if !sys::single_instance() {

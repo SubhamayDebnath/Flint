@@ -1,5 +1,6 @@
 <#
   Builds everything in dist\ :
+    Flint-<ver>-x64-setup.exe         (double-click = install + start in tray)
     Flint-<ver>-x64-per-user.msi      (no admin needed)
     Flint-<ver>-x64-per-machine.msi   (admin once, all users)
     Flint-<ver>-x64-portable.zip      (no installation at all)
@@ -35,6 +36,10 @@ foreach ($scope in @(@("perUser", "per-user"), @("perMachine", "per-machine"))) 
     if ($LASTEXITCODE -ne 0) { throw "wix build failed ($($scope[0]))" }
     Write-Host "  -> $out"
 }
+
+# one-click setup: the exe installs itself (Settings > Apps, Start menu, autostart, tray)
+Copy-Item $exe "dist\Flint-$Version-x64-setup.exe"
+Write-Host "  -> dist\Flint-$Version-x64-setup.exe"
 
 # portable: just the exe + a flag file (portable.flag = do not auto-start with Windows)
 $stage = "dist\Flint-portable"

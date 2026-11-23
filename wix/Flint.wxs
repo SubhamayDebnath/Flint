@@ -31,7 +31,7 @@
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/SubhamayDebnath/Flint" />
 
     <!-- stop a running Flint before files are replaced or removed -->
-    <util:CloseApplication Id="CloseFlint" Target="Flint.exe" CloseMessage="no"
+    <util:CloseApplication Id="CloseFlint" Target="flint.exe" CloseMessage="no"
                            RebootPrompt="no" TerminateProcess="1" />
 
     <?if $(Scope) = perMachine ?>

@@ -11,9 +11,12 @@ No browser, no WebView2, no React, no JavaScript. The UI is drawn natively with
 
 | Package | File | Admin | Installs to |
 | --- | --- | :---: | --- |
+| ⚡ One-click setup | `Flint-x.y.z-x64-setup.exe` (or `flint.exe` from `cargo build --release`) | none | `%LOCALAPPDATA%\Programs\Flint` |
 | 🟢 MSI, per-user | `Flint-x.y.z-x64-per-user.msi` | none | `%LOCALAPPDATA%\Programs\Flint` |
 | 🔵 MSI, per-machine | `Flint-x.y.z-x64-per-machine.msi` | once | `C:\Program Files\Flint` |
 | 📁 Portable ZIP | `Flint-x.y.z-x64-portable.zip` | none | wherever you unzip it |
+
+**One-click setup:** double-click the exe once. It installs itself, appears in *Settings → Apps → Installed apps* and the Start menu, starts with Windows, and stays in the tray. Running a newer exe updates the install. Uninstall from Settings → Apps. (Debug builds, `--no-install` and the portable ZIP skip installing.)
 
 Silent install: `msiexec /i Flint-x.y.z-x64-per-user.msi /qn`.
 Both MSIs upgrade in place, close a running Flint first, and add a Start-menu shortcut.
@@ -36,9 +39,7 @@ Search syntax: `:app code`, `:file budget`, `:folder projects`, `report .pdf`, `
 ("Press Enter again to confirm"). Registry editor, Disk management, Device manager and
 Services were removed from the quick commands because they can delete data or break Windows.
 
-**Position.** The panel is centred on the work area of the monitor under the mouse. It is
-centred for its *full* height (search box + 10 rows), so a full result list never touches
-the taskbar and the search box does not jump while you type.
+**Position.** Same as the original Flint: horizontally centred, 14 % down from the top of the monitor under the mouse. Results grow downward; if a full list would reach the taskbar, the panel moves up just enough to stay clear of it.
 
 ## 🛠 Build
 
@@ -95,4 +96,4 @@ or sign the MSI / EXE with your certificate.
   names are not covered by the bundled fallback fonts (that would add ~20 MB of RAM).
 * Uninstall leaves the index cache in `%LOCALAPPDATA%\Flint` (delete it by hand).
 
-MIT © Subhamay
+MIT © subhamay

@@ -704,7 +704,7 @@ impl FlintApp {
         // native window height always matches the panel (a command only when it changes)
         if (want_h - self.last_h).abs() > 0.5 {
             self.last_h = want_h;
-            ctx.send_viewport_cmd(ViewportCommand::InnerSize(Vec2::new(win::WIDTH, want_h)));
+            win::resize(want_h);
             ctx.request_repaint();
         }
 

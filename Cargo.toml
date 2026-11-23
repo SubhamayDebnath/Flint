@@ -2,13 +2,13 @@
 name = "flint"
 version = "0.3.0"
 description = "Instant, offline, keyboard-first Windows launcher (100% native Rust)"
-authors = ["Subhamay"]
+authors = ["subhamay"]
 license = "MIT"
 edition = "2021"
 rust-version = "1.80"
 
 [[bin]]
-name = "Flint"
+name = "flint"
 path = "src/main.rs"
 
 [dependencies]

@@ -71,7 +71,7 @@ pub fn lower_thread_priority() {
 
 /// Absolute path of a built-in Windows tool. Never resolved through the current directory / PATH,
 /// so a planted `explorer.exe` or `shutdown.exe` can never be launched by mistake.
-fn system_exe(name: &str) -> PathBuf {
+pub fn system_exe(name: &str) -> PathBuf {
     let root =
         PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into()));
     if name.eq_ignore_ascii_case("explorer.exe") {
@@ -321,7 +321,7 @@ fn hwnd(raw: isize) -> HWND {
 
 /// Work area (screen minus taskbar) of the monitor under the mouse, plus its DPI scale.
 /// Falls back to the primary monitor.
-pub fn work_area_under_cursor() -> (RECT, f32) {
+pub fn work_area_under_cursor() -> (RECT, RECT, f32) {
     unsafe {
         let mut pt = POINT::default();
         let _ = GetCursorPos(&mut pt);
@@ -330,43 +330,72 @@ pub fn work_area_under_cursor() -> (RECT, f32) {
             cbSize: size_of::<MONITORINFO>() as u32,
             ..Default::default()
         };
-        let rect = if GetMonitorInfoW(mon, &mut mi).as_bool() {
-            mi.rcWork
+        let fallback = RECT {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1040,
+        };
+        let (rect, full) = if GetMonitorInfoW(mon, &mut mi).as_bool() {
+            (mi.rcWork, mi.rcMonitor)
         } else {
-            RECT {
-                left: 0,
-                top: 0,
-                right: 1920,
-                bottom: 1040,
-            }
+            (fallback, fallback)
         };
         let (mut dx, mut dy) = (96u32, 96u32);
         let _ = GetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &mut dx, &mut dy);
-        (rect, dx.max(96) as f32 / 96.0)
+        (rect, full, dx.max(96) as f32 / 96.0)
     }
 }
 
-/// Place the window (physical pixels): horizontally centred in the work area, vertically centred
-/// for its *maximum* height. The taskbar is never covered, even with a full result list, and
-/// the search box does not jump while results appear.
-pub fn place_window(raw: isize, width: f32, min_h: f32, max_h: f32) {
-    let (work, s) = work_area_under_cursor();
-    let (ww, wh) = (work.right - work.left, work.bottom - work.top);
+/// Where the launcher sits (physical pixels).
+#[derive(Clone, Copy, Default)]
+pub struct Geo {
+    pub x: i32,
+    /// top of the search bar (14 % down the screen)
+    pub y: i32,
+    pub work_top: i32,
+    pub work_bottom: i32,
+    pub scale: f32,
+}
+
+/// Show the window horizontally centred, 14 % from the top (the original Flint position), on
+/// the monitor under the mouse. Returns the geometry for `resize_window`.
+pub fn place_window(raw: isize, width: f32, bar_h: f32) -> Geo {
+    let (work, full, s) = work_area_under_cursor();
+    let ww = work.right - work.left;
     let w = ((width * s).round() as i32).min(ww);
-    let max_px = ((max_h * s).round() as i32).min(wh);
-    let h = (min_h * s).round() as i32;
-    let x = work.left + (ww - w) / 2;
-    let y = (work.top + (wh - max_px) / 2).clamp(work.top, (work.bottom - max_px).max(work.top));
+    let h = (bar_h * s).round() as i32;
+    let g = Geo {
+        x: work.left + (ww - w) / 2,
+        // original Flint position: 14 % down the screen (between top and centre)
+        y: (full.top + ((full.bottom - full.top) as f32 * 0.14) as i32)
+            .clamp(work.top, work.bottom - h),
+        work_top: work.top,
+        work_bottom: work.bottom,
+        scale: s,
+    };
     unsafe {
         let _ = SetWindowPos(
             hwnd(raw),
             Some(HWND_TOPMOST),
-            x,
-            y,
+            g.x,
+            g.y,
             w,
             h,
             SWP_NOACTIVATE | SWP_SHOWWINDOW,
         );
+    }
+    g
+}
+
+/// Resize for a new list height. The bar stays at the centre; only when the list would reach the
+/// taskbar is the whole panel moved up just enough to stay clear of it.
+pub fn resize_window(raw: isize, g: &Geo, width: f32, height: f32) {
+    let w = (width * g.scale).round() as i32;
+    let h = (height * g.scale).round() as i32;
+    let y = g.y.min(g.work_bottom - h).max(g.work_top);
+    unsafe {
+        let _ = SetWindowPos(hwnd(raw), None, g.x, y, w, h, SWP_NOACTIVATE | SWP_NOZORDER);
     }
 }
 
@@ -480,15 +509,49 @@ pub fn autostart_enabled() -> bool {
 }
 
 pub fn set_autostart(on: bool) {
+    if let Ok(exe) = std::env::current_exe() {
+        set_autostart_path(on, &exe);
+    }
+}
+
+pub fn set_autostart_path(on: bool, exe: &std::path::Path) {
     let Ok((key, _)) = RegKey::predef(HKEY_CURRENT_USER).create_subkey(RUN_KEY) else {
         return;
     };
     if on {
-        if let Ok(exe) = std::env::current_exe() {
-            let _ = key.set_value("Flint", &format!("\"{}\"", exe.display()));
-        }
+        let _ = key.set_value("Flint", &format!("\"{}\"", exe.display()));
     } else {
         let _ = key.delete_value("Flint");
+    }
+}
+
+/// Create a .lnk file.
+pub fn create_shortcut(target: &str, work_dir: &str, lnk: &str) -> bool {
+    unsafe {
+        com_init();
+        let Ok(link) = CoCreateInstance::<_, IShellLinkW>(&ShellLink, None, CLSCTX_INPROC_SERVER)
+        else {
+            return false;
+        };
+        let _ = link.SetPath(PCWSTR(wide(target).as_ptr()));
+        let _ = link.SetWorkingDirectory(PCWSTR(wide(work_dir).as_ptr()));
+        let _ = link.SetDescription(w!("Flint launcher"));
+        let Ok(pf) = link.cast::<IPersistFile>() else {
+            return false;
+        };
+        pf.Save(PCWSTR(wide(lnk).as_ptr()), true).is_ok()
+    }
+}
+
+/// Small information box.
+pub fn message(title: &str, text: &str) {
+    unsafe {
+        let _ = MessageBoxW(
+            None,
+            PCWSTR(wide(text).as_ptr()),
+            PCWSTR(wide(title).as_ptr()),
+            MB_OK | MB_ICONINFORMATION,
+        );
     }
 }
 
