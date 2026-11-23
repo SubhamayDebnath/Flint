@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One source, two MSI packages (WiX v4/v5):
+    wix build -d Scope=perUser    ...  -> Flint-x.y.z-x64-per-user.msi     (no admin, %LOCALAPPDATA%\Programs\Flint)
+    wix build -d Scope=perMachine ...  -> Flint-x.y.z-x64-per-machine.msi  (admin once, C:\Program Files\Flint)
+  Other defines:  -d Version=0.3.0  -d ExePath=target\release\flint.exe
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <?if $(Scope) = perMachine ?>
+    <?define UpgradeCode = "311e40fa-aee6-4e03-b343-7bf044e21a3e" ?>
+  <?else?>
+    <?define UpgradeCode = "61d8d1b0-d88f-414c-ad7d-8557dc0ece97" ?>
+  <?endif?>
+
+  <Package Name="Flint"
+           Manufacturer="subhamay"
+           Version="$(Version)"
+           UpgradeCode="$(UpgradeCode)"
+           Scope="$(Scope)"
+           Language="1033"
+           InstallerVersion="500">
+
+    <SummaryInformation Description="Flint - instant, offline, keyboard-first launcher" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Flint is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="FlintIcon" SourceFile="assets/icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="FlintIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/SubhamayDebnath/Flint" />
+
+    <!-- stop a running Flint before files are replaced or removed -->
+    <util:CloseApplication Id="CloseFlint" Target="Flint.exe" CloseMessage="no"
+                           RebootPrompt="no" TerminateProcess="1" />
+
+    <?if $(Scope) = perMachine ?>
+      <StandardDirectory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Flint" />
+      </StandardDirectory>
+    <?else?>
+      <StandardDirectory Id="LocalAppDataFolder">
+        <Directory Id="ProgramsDir" Name="Programs">
+          <Directory Id="INSTALLFOLDER" Name="Flint" />
+        </Directory>
+      </StandardDirectory>
+    <?endif?>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppMenuFolder" Name="Flint" />
+    </StandardDirectory>
+
+    <Component Id="AppExe" Directory="INSTALLFOLDER">
+      <File Id="FlintExe" Source="$(ExePath)" KeyPath="yes" />
+    </Component>
+
+    <Component Id="StartMenuShortcut" Directory="AppMenuFolder">
+      <Shortcut Id="FlintShortcut" Name="Flint" Description="Open Flint"
+                Target="[INSTALLFOLDER]flint.exe" WorkingDirectory="INSTALLFOLDER" />
+      <RemoveFolder Id="RemoveAppMenuFolder" On="uninstall" />
+      <RegistryValue Root="HKMU" Key="Software\subhamay\Flint" Name="StartMenu"
+                     Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <!-- uninstall: flint.exe --uninstall removes the current user's "start with Windows" entry.
+         Not run during an upgrade, so the user's choice survives updates. -->
+    <CustomAction Id="CleanupAutostart" FileRef="FlintExe" ExeCommand="--uninstall"
+                  Execute="immediate" Return="ignore" />
+    <InstallExecuteSequence>
+      <Custom Action="CleanupAutostart" Before="RemoveFiles"
+              Condition='REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE' />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>
